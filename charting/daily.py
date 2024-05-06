@@ -3,8 +3,10 @@ import requests
 from lightweight_charts import Chart
 from io import StringIO
 from time import sleep
+import time
+import datetime
+import asyncio
 import threading
-import time, datetime
 from data_process import process_json_data
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
@@ -15,47 +17,40 @@ autorefresh = False
 # Disable SSL warnings on localhost with self signed certificate
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-def calculate_sma(df, period: int = 50):
+async def calculate_sma(df, period: int = 50):
     return pd.DataFrame({
         'time': df['date'],
         f'SMA {period}': df['close'].rolling(window=period).mean()
     }).dropna()
 
 def time_frame_manipulation(timeFrame):
-    if timeFrame in ['1Min', '5Min', '10Min', '15Min', '1H', '2H']:
-        return '1'
-    elif timeFrame in ['1D', '1W', '2D']:
-        return '1D'
+    if timeFrame.endswith('Min'):
+        return (timeFrame[:-3])
     else:
         return '1D'
 
 
-def fetch_data(SecurityName, timeFrame):
+async def fetch_data(SecurityName, timeFrame):
     print(f"getting bar data for {SecurityName} {timeFrame}")
-    #Chart.spinner(True)
     manipulatedTimeFrame = time_frame_manipulation(timeFrame)
 
-    available_symbols = fetch_available_symbols()
-    if available_symbols is None:
-        #Chart.spinner(False)
-        return None
+    # available_symbols = fetch_available_symbols()
+    # if available_symbols is None:
+    #     return None
 
-    if SecurityName not in available_symbols:
-        print(f"Symbol {SecurityName} not found in available symbols")
-        #Chart.spinner(False)
-        return None
+    # if SecurityName not in available_symbols:
+    #     print(f"Symbol {SecurityName} not found in available symbols")
+    #     return None
 
     url = 'https://localhost:4000/api/getcompanyohlc?symbol=' + SecurityName + '&timeFrame=' + manipulatedTimeFrame
     response = requests.get(url,verify=False)
     if response.status_code == 200:
-        #Chart.spinner(False)
-        return process_json_data(response.json(),timeFrame,manipulatedTimeFrame)
+        return process_json_data(response.json(),manipulatedTimeFrame)
     else:
-        #Chart.spinner(False)
-        print(f"Failed to fetch data from {url}")
+        print(f"Failed to fetch data from {url}, probably the symbol is not available.")
         return None
 
-def fetch_available_symbols():
+async def fetch_available_symbols():
     url = 'https://localhost:4000/api/availablenepsecompanies'
     response = requests.get(url, verify=False)
     if response.status_code == 200:
@@ -69,22 +64,22 @@ def fetch_available_symbols():
         print(f"Failed to fetch data from {url}")
         return None
 
-def on_search(chart, searched_string):
-    new_data = fetch_data(searched_string, chart.topbar['timeframe'].value)
+async def on_search(chart, searched_string):
+    new_data = await fetch_data(searched_string, chart.topbar['timeframe'].value)
     if new_data is None or new_data.empty:
         return
     chart.topbar['symbol'].set(searched_string)
     chart.watermark(searched_string + ' ' + chart.topbar['timeframe'].value)
     chart.set(new_data)
 
-def on_timeframe_selection(chart):
-    new_data = fetch_data(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
+async def on_timeframe_selection(chart):
+    new_data = await fetch_data(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
     if new_data is None or new_data.empty:
         return
     chart.watermark(chart.topbar['symbol'].value + ' ' + chart.topbar['timeframe'].value)
     chart.set(new_data, True)
 
-def take_screenshot(key):
+async def take_screenshot(key):
     img = Chart.screenshot()
     t = time.time()
     with open(f"screenshot-{t}.png", 'wb') as f:
@@ -93,33 +88,30 @@ def take_screenshot(key):
 async def fetch_others_data():
     print("fetching other data")
 
-def refresh_data(chart):
-    new_data = fetch_data(Chart.topbar['symbol'].value, Chart.topbar['timeframe'].value)
+async def refresh_data(chart):
+    new_data = await fetch_data(Chart.topbar['symbol'].value, Chart.topbar['timeframe'].value)
     if new_data is None or new_data.empty:
         return
     chart.set(new_data, True)
 
-def auto_refresh(chart): #bugged, use update chart from tick value
-    def refresh_loop():
-        while chart.topbar['autorefresh'].value == 'True':
-            print("Auto Refreshing Data...")
-            refresh_data(chart)
-            sleep(10)
-        print("Auto Refresh stopped.")
+auto_refresh_task = None
 
-    refresh_thread = threading.Thread(target=refresh_loop)
-    refresh_thread.start()
+async def auto_refresh(chart):
+    global auto_refresh_task
 
-    while True:
-        if chart.is_alive:
-            print ("Chart is still open")
-            sleep(1)
-        else:
-            print("Chart window closed. Stopping auto refresh.")
-            refresh_thread.join()
-            break
+    if auto_refresh_task and not auto_refresh_task.done():
+        auto_refresh_task.cancel()
 
-if __name__ == '__main__':
+    async def refresh():
+        while chart.is_alive and chart.topbar['autorefresh'].value == 'True':
+            await asyncio.sleep(5 - (datetime.datetime.now().microsecond / 1_000_000))
+            new_data = await fetch_data(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
+            if new_data is not None and not new_data.empty:
+                chart.set(new_data, True)
+
+    auto_refresh_task = asyncio.create_task(refresh())
+
+async def main():
     global Chart
     Chart = Chart(toolbox=False, maximize=True, inner_width=0.65, inner_height=1, title='Nepse Chart')
     Chart.legend(visible = True, font_family = 'Trebuchet MS', ohlc = True, percent = True)
@@ -128,20 +120,23 @@ if __name__ == '__main__':
     Chart.watermark(SecurityName + ' ' + timeFrame)
     Chart.topbar.menu('menu', ('File', 'Edit', 'View', 'Help'), default='File')
     Chart.topbar.textbox('symbol', SecurityName)
-    Chart.topbar.switcher('timeframe', ('1Min', '5Min', '10Min', '15Min','1D', '2D', '1W'), default=timeFrame, func=on_timeframe_selection)
+    Chart.topbar.switcher('timeframe', ('1Min', '5Min', '10Min', '15Min','1D', '1W'), default=timeFrame, func= on_timeframe_selection)
     Chart.events.search += on_search
-    Chart.topbar.button('screenshot', 'Screenshot', func=take_screenshot)
-    Chart.topbar.button('refresh', 'Manual Refresh', func=refresh_data)
+    Chart.topbar.button('screenshot', 'Screenshot', func= take_screenshot)
+    Chart.topbar.button('refresh', 'Manual Refresh', func= refresh_data)
     Chart.topbar.textbox('autorefreshtext', 'Autoreresh')
-    #Chart.topbar.switcher('autorefresh', ('True', 'False'), default='False', func=auto_refresh)
+    Chart.topbar.switcher('autorefresh', ('True', 'False'), default='False', func= auto_refresh)
 
-    df = fetch_data(SecurityName, timeFrame)
+    df = await fetch_data(SecurityName, timeFrame)
     if df is None:
         print('No data to display')
         exit(1)
 
-    sma_data = calculate_sma(df, period=50)
+    sma_data = await calculate_sma(df, period=50)
     line.set(sma_data)
-    Chart.set(df)
 
-    Chart.show(block=True)
+    Chart.set(df)
+    await asyncio.gather(Chart.show_async(block=True), auto_refresh(Chart))
+
+if __name__ == '__main__':
+    asyncio.run(main())
