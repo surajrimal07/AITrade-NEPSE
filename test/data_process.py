@@ -26,4 +26,6 @@ def process_json_data(raw_data,timeFrame):
     #print(timeFrame +' Data is available from date ' + str(df['date'].min()) + ' to ' + str(df['date'].max()))
 
     df = df.drop_duplicates(subset=['date'])
+    print(df)
+
     return df
