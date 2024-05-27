@@ -3,9 +3,13 @@ import json
 import logging
 import pandas as pd
 
+last_price = None
+
 logging.basicConfig(level=logging.INFO)
 
 def process_json_data(raw_data,timeFrame):
+    global last_price
+
     timestamps = raw_data['t']
     open_prices = raw_data['o']
     high_prices = raw_data['h']
@@ -23,7 +27,14 @@ def process_json_data(raw_data,timeFrame):
     'close': close_prices,
     'volume': volumes
 })
-    #print(timeFrame +' Data is available from date ' + str(df['date'].min()) + ' to ' + str(df['date'].max()))
 
     df = df.drop_duplicates(subset=['date'])
+
+    last_price = df['close'].iloc[-1]
+
     return df
+
+
+def get_last_price():
+    global last_price
+    return last_price

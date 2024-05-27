@@ -19,17 +19,22 @@ from regression import regression_plot
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from other_data import fetch_prediction
 from timeseries import time_series_analysis
-from global_var import baseUrl
+from global_var import *
 
+
+#convert all these to settings later
 SecurityName = 'NEPSE'
 timeFrame = '1D'
 autorefresh = False
 auto_refresh_task = None
-auto_refresh_task_sub = None
 userData = [
     {'name': 'No User', 'email': 'No User', 'userAmount': 0}
 ]
-userPortfolio = []
+userPortfolio = [
+    {'recommendation': 'None','stocks': [
+        {'name': 'None','ltp': 0,'symbol': 'None', 'quantity': 0, 'wacc': 0, 'costprice': 0, 'currentprice': 0, 'netgainloss': 0,'time': 0}
+    ], 'totalunits': 0, 'portfoliocost': 0, 'portfoliovalue': 0, 'portgainloss': 0, 'portfolioPercentage': 0, 'totalStocks': 0,'totalunits': 0,}
+]
 isLoggedin = False
 basic_prediction_result = [
     {'prediction': 'No Data Available', 'strength': 0}
@@ -37,9 +42,8 @@ basic_prediction_result = [
 
 SubchartSecurity = 'NEPSE'
 SubchartTimeFrame = '1'
-#baseUrl = 'https://api.zorsha.com.np/api/'
-#baseUrl = 'https://localhost:4000/api/'
-default_quantity = 100
+default_quantity = 1 #stock quantity to buy
+fetchLivePortfolio = True
 
 # Disable SSL warnings on localhost with self signed certificate
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -70,11 +74,11 @@ async def fetch_prediction_data():
 
 async def buy_stock(df):
     global isLoggedin
-    epoch_time = int(time.time())
+    global userPortfolio
     if isLoggedin:
-        price = df.iloc[-1]['close']
-        add_stock_to_portfolio(Chart.topbar['symbol'].value, default_quantity, epoch_time, price)
-        await fetch_user_portfolio()
+        userPortfolio = add_stock_to_portfolio(Chart.topbar['symbol'].value, default_quantity)
+        if userPortfolio:
+            update_portfolio_table(Chart)
     else:
         await login_user(Chart)
 
@@ -82,33 +86,25 @@ async def fetch_user_portfolio():
     global userPortfolio
     userPortfolio = fetch_trading_portfolio()
     if userPortfolio:
-        userData = userPortfolio
+        update_portfolio_table(Chart)
     else:
         print("Failed to fetch user portfolio")
 
 async def login_user(chart):
     global isLoggedin
+    global userData
     if isLoggedin:
         logout_data = show_logout_dialog()
         if logout_data:
             chart.topbar['login'].set(user['name'])
             isLoggedin = False
     else :
-        login_data = show_login_dialog()
-        if login_data:
-            chart.topbar['login'].set(login_data['name'])
-            userData[0] = login_data
+        userData = show_login_dialog()
+        if userData:
+            chart.topbar['login'].set(userData['name'])
             await fetch_user_portfolio()
-            if userPortfolio:
-                update_portfolio_table(chart)
             isLoggedin = True
 
-
-# def on_button_press(chart):
-#     new_button_value = 'AutoTrade On' if chart.topbar['autotrade_button'].value == 'AutoTrade Off' else 'AutoTrade Off'
-#     chart.topbar['autotrade_button'].set(new_button_value)
-#     if new_button_value == 'AutoTrade On':
-#         auto_refresh(Chart)
 
 def time_frame_manipulation(timeFrame):
     time_frame_mapping = {
@@ -126,38 +122,6 @@ def showAlgorithmGUI(chart):
         regression_plot(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value))
     elif chart.topbar['algo'].value == 'TimeSeries':
         time_series_analysis(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value))
-
-# async def perform_regression_analysis(df):
-#     y = np.array(df["close"])
-#     x = np.linspace(1, len(y), len(y)).reshape(-1, 1)
-#     reg = LinearRegression()
-#     reg.fit(x, y)
-
-#     next_index = reg.predict(np.array([[len(y) + 1]]))[0]
-#     next_index = round(next_index, 2)
-
-#     slope = reg.coef_[0]
-#     intercept = reg.intercept_
-#     regression_equation = f"{slope:.2f}x + {intercept:.2f}"
-
-#     today = date.today()
-#     date_str = date.isoformat(today)
-
-#     # Calculate regression metrics
-#     y_pred = reg.predict(x)
-#     r_squared = r2_score(y, y_pred)
-#     mae = mean_absolute_error(y, y_pred)
-#     mse = mean_squared_error(y, y_pred)
-#     rmse = np.sqrt(mse)
-#     accuracy_percent = r_squared * 100
-
-#     print(f"R-squared: {r_squared:.2f}")
-#     print(f"Mean Absolute Error (MAE): {mae:.2f}")
-#     print(f"Mean Squared Error (MSE): {mse:.2f}")
-#     print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
-#     print(f"Accuracy: {accuracy_percent:.2f}%")
-
-#     return next_index, date_str, regression_equation, slope, intercept
 
 
 async def perform_regression_analysis(df):
@@ -309,20 +273,6 @@ async def auto_refresh(chart):
 
     auto_refresh_task = asyncio.create_task(refresh(chart))
 
-# async def auto_refresh_sub(chart):
-#     new_button_value_sub = 'AutoRefresh On' if chart.topbar['autorefresh_button_sub'].value == 'AutoRefresh Off' else 'AutoRefresh Off'
-#     chart.topbar['autorefresh_button_sub'].set(new_button_value_sub)
-
-#     global auto_refresh_task_sub
-
-#     async def refresh_sub(chart):
-#         while chart.topbar['autorefresh_button_sub'].value == 'AutoRefresh On':
-#             await asyncio.sleep(10 - (datetime.datetime.now().microsecond / 1_000_000))
-#             new_data = await fetch_tick_data(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
-#             if new_data is not None and not new_data.empty:
-#                 chart.set(new_data, True)
-
-#     auto_refresh_task_sub = asyncio.create_task(refresh_sub(chart))
 
 def on_row_click(row):
     print(f'Row Clicked: {row}')
@@ -351,7 +301,7 @@ def update_portfolio_table(chart):
 
         table = chart.portfolio_table
         table.clear()
-        table.header[0] = userData[0]['name'] + ' Portfolio '+ ' (Balance Rs '+ str(userData[0]['userAmount']) + ')'
+        table.header[0] = userData['name'] + ' Portfolio '+ ' (Balance Rs '+ str(userData['userAmount']) + ')'
 
         for stock in userPortfolio['stocks']:
             percentage = round((stock['currentprice'] - stock['costprice']) / stock['costprice'] * 100, 0)
@@ -370,13 +320,14 @@ def update_portfolio_table(chart):
         create_portfolio_table(chart)
 
 async def on_portfolio_row_click(row):
-    new_data = await fetch_data(row['Symbol'], Chart.topbar['timeframe'].value)
-    if new_data is None or new_data.empty:
-        return
-    Chart.topbar['symbol'].set(row['Symbol'])
-    Chart.watermark(row['Symbol'] + ' ' + Chart.topbar['timeframe'].value)
-    await recalculate_dataset(new_data)
-    Chart.set(new_data)
+    if isLoggedin:
+        new_data = await fetch_data(row['Symbol'], Chart.topbar['timeframe'].value)
+        if new_data is None or new_data.empty:
+            return
+        Chart.topbar['symbol'].set(row['Symbol'])
+        Chart.watermark(row['Symbol'] + ' ' + Chart.topbar['timeframe'].value)
+        await recalculate_dataset(new_data)
+        Chart.set(new_data)
 
 # def buy_stock(chart):
 #     print ("Buying stock")
@@ -412,19 +363,13 @@ async def main():
     Chart.topbar.button('sell', 'Sell', func= sell_stock)
 
 
-
-
 #subchart
     subchart = Chart.create_subchart(width=0.3, height=0.4)
     subchart.watermark(SubchartSecurity + ' ' + SubchartTimeFrame)
     subchart.topbar.textbox('symbol', SubchartSecurity)
     subchart.topbar.switcher('timeframe', ('1Min', '5Min', '10Min'), default=SubchartTimeFrame, func= on_timeframe_selection)
     subchart.events.search += on_search
-    #subchart.topbar.button('refresh', 'Refresh', func= refresh_data)
     subchart.topbar.button('autorefresh_button', 'AutoRefresh Off', func=auto_refresh)
-
-    # subchart.topbar.textbox('autorefreshtext', 'autorefresh')
-    # subchart.topbar.switcher('autorefresh', ('True', 'False'), default='False', func= auto_refresh)
 
     df2 = await fetch_data(SubchartSecurity, SubchartTimeFrame)
 

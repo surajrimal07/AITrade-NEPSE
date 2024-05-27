@@ -7,25 +7,33 @@ import time
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-from global_var import JWT_TOKEN, session, portfolio_id, baseUrl
+from global_var import *
+from data_process import get_last_price
 
-##save headers and cookies to use in future requests
-# JWT_TOKEN = None
-# session = requests.Session()
+def show_error_dialog(message):
+    app = QApplication.instance() or QApplication(sys.argv)
+    QMessageBox.warning(None, 'Error Occurred', f"Message: {message}")
 
-def add_stock_to_portfolio(symbol, quantity, price, time = int(time.time())):
+def add_stock_to_portfolio(symbol, quantity, time = int(time.time())):
+    global JWT_TOKEN, session, portfolio_id
+    last_price = get_last_price()
+
     url = baseUrl+'user/addstock'
-    payload = {'symbol': symbol, 'quantity': quantity, 'price': price,'id': portfolio_id, time : time}
+    payload = {'symboll': symbol, 'quantityy': quantity, 'price': last_price,'id': portfolio_id, time : time}
     headers = {'Authorization': 'Bearer ' + JWT_TOKEN}
-    response = requests.post(url, data=payload, headers=headers, verify=False)
-    trading_portfolio = next((p for p in response.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
+    response = session.post(url, data=payload, headers=headers, verify=False)
+    response_data = response.json()
     if response.status_code == 200:
+        trading_portfolio = next((p for p in response_data['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
+        #trading_portfolio = next((p for p in response_data['data'] if p['name'] == 'tradingdashboard'), None)
         if trading_portfolio:
            return trading_portfolio
         else:
-            return 'Error adding stock to portfolio!'
+            show_error_dialog(response_data.get('message', ''))
+            return None
     else:
-        return 'Failed to add stock to portfolio!'
+        show_error_dialog(response_data.get('message', ''))
+        return None
 
 def remove_stock_from_portfolio(email, symbol, quantity):
     global JWT_TOKEN
@@ -36,7 +44,8 @@ def remove_stock_from_portfolio(email, symbol, quantity):
     payload = {'email': email, 'symbol': symbol, 'quantity': quantity,'id': portfolio_id}
     headers = {'Authorization': 'Bearer ' + JWT_TOKEN}
     response = session.post(url, data=payload, headers=headers, verify=False)
-    trading_portfolio = next((p for p in response.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
+    trading_portfolio = next((p for p in portfolioResponse.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
+    #trading_portfolio = next((p for p in response.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
     if response.status_code == 200:
         if trading_portfolio:
            return trading_portfolio
@@ -51,14 +60,17 @@ def fetch_trading_portfolio():
     url = baseUrl+'user/getallportforuser'
     headers = {'Authorization': 'Bearer ' + JWT_TOKEN}
     portfolioResponse = session.get(url, headers=headers, verify=False)
-    trading_portfolio = next((p for p in portfolioResponse.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
     if portfolioResponse.status_code == 200:
+        trading_portfolio = next((p for p in portfolioResponse.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
+        #trading_portfolio = next((p for p in portfolioResponse.json()['data'] if p['name'] == 'tradingdashboard'), None)
         if trading_portfolio:
            portfolio_id = trading_portfolio['_id']
            return trading_portfolio
         else:
+            show_error_dialog('No trading portfolio found!')
             return 'No trading portfolio found!'
     else:
+        show_error_dialog('Failed to fetch trading portfolio!')
         return 'Failed to fetch trading portfolio!'
 
 
