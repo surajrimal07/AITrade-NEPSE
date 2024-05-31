@@ -31,7 +31,6 @@ def process_json_data(raw_data,timeFrame):
     df = df.drop_duplicates(subset=['date'])
 
     last_price = df['close'].iloc[-1]
-
     return df
 
 

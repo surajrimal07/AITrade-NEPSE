@@ -4,11 +4,16 @@ import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import json
 import time
+from toastify import notify
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 from global_var import *
 from data_process import get_last_price
+
+# def show_toast(message):
+#     app = QApplication.instance() or QApplication(sys.argv)
+#     QMessageBox.information(None, 'Error Occurred', f"Message: {message}")
 
 def show_error_dialog(message):
     app = QApplication.instance() or QApplication(sys.argv)
@@ -32,6 +37,7 @@ def add_stock_to_portfolio(symbol, quantity, time = int(time.time())):
             show_error_dialog(response_data.get('message', ''))
             return None
     else:
+        #show_toast('Error adding stock to portfolio!')
         show_error_dialog(response_data.get('message', ''))
         return None
 
@@ -50,7 +56,8 @@ def remove_stock_from_portfolio(email, symbol, quantity):
         if trading_portfolio:
            return trading_portfolio
         else:
-            return 'Error removing stock from portfolio!'
+            show_error_dialog('Error removing stock from portfolio!')
+            return None
 
 def fetch_trading_portfolio():
     global JWT_TOKEN
@@ -68,10 +75,10 @@ def fetch_trading_portfolio():
            return trading_portfolio
         else:
             show_error_dialog('No trading portfolio found!')
-            return 'No trading portfolio found!'
+            return None
     else:
         show_error_dialog('Failed to fetch trading portfolio!')
-        return 'Failed to fetch trading portfolio!'
+        return None
 
 
 def login(email, password):

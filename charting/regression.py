@@ -8,22 +8,35 @@ from data_process import process_json_data
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from global_var import baseUrl
-
-
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+import os
 
 def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True):
-    url = f"{baseUrl}getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
-    #url = f'https://api.zorsha.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}'
-    response = requests.get(url, verify=False)
+    # url = f"{baseUrl}getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
+    # #url = f'https://api.zorsha.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}'
+    # response = requests.get(url, verify=False)
 
-    if response.status_code != 200:
-        print(f"Failed to fetch data from {url}, probably the symbol is not available.")
-        return None
+    # if response.status_code != 200:
+    #     print(f"Failed to fetch data from {url}, probably the symbol is not available.")
+    #     return None
 
-    data = process_json_data(response.json(), timeFrame)
+    # data = process_json_data(response.json(), timeFrame)
 
-    df = pd.DataFrame(data)
+    # df = pd.DataFrame(data)
+
+    folder_name = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_data", f"{SecurityName}", f"{timeFrame}")
+    csv_path = os.path.join(folder_name, f"{SecurityName}_{timeFrame}.csv")
+
+    if SecurityName is None or timeFrame is None:
+        print("Error: SecurityName and timeFrame must be provided if df is None.")
+        return
+
+    df = pd.read_csv(csv_path)
+    df['date'] = pd.to_datetime(df['date'])
+
+    df['close'] = pd.to_numeric(df['close'], errors='coerce')
+
+    df.dropna(subset=['close'], inplace=True)
+
     df.rename(columns={'close': 'Index Value', 'date': 'Date (AD)'}, inplace=True)
     df.drop(['high', 'open', 'low', 'volume'], axis=1, inplace=True)
 
