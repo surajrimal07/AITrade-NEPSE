@@ -5,6 +5,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import json
 import time
 from toastify import notify
+import copy
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -15,18 +16,31 @@ from data_process import get_last_price
 #     app = QApplication.instance() or QApplication(sys.argv)
 #     QMessageBox.information(None, 'Error Occurred', f"Message: {message}")
 
+def fetch_csrf_token():
+    global CSRF_TOKEN
+    global session
+
+    url = baseUrl+'/user/csrf-token'
+    response = session.get(baseUrl+'/user/csrf-token', verify=False)
+    if response.status_code == 200:
+#        CSRF_TOKEN = response.json().get('token', None)
+        session.headers.update({'xsrf-token': CSRF_TOKEN})
+        return CSRF_TOKEN
+    else:
+        return None
+
 def show_error_dialog(message):
     app = QApplication.instance() or QApplication(sys.argv)
     QMessageBox.warning(None, 'Error Occurred', f"Message: {message}")
 
 def add_stock_to_portfolio(symbol, quantity, time = int(time.time())):
-    global JWT_TOKEN, session, portfolio_id
+    global JWT_TOKEN, session, portfolio_id, CSRF_TOKEN
     last_price = get_last_price()
 
     url = baseUrl+'user/addstock'
     payload = {'symboll': symbol, 'quantityy': quantity, 'price': last_price,'id': portfolio_id, time : time}
-    headers = {'Authorization': 'Bearer ' + JWT_TOKEN}
-    response = session.post(url, data=payload, headers=headers, verify=False)
+
+    response = session.post(url, data=payload, verify=False)
     response_data = response.json()
     if response.status_code == 200:
         trading_portfolio = next((p for p in response_data['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
@@ -37,20 +51,19 @@ def add_stock_to_portfolio(symbol, quantity, time = int(time.time())):
             show_error_dialog(response_data.get('message', ''))
             return None
     else:
-        #show_toast('Error adding stock to portfolio!')
         show_error_dialog(response_data.get('message', ''))
         return None
 
-def remove_stock_from_portfolio(email, symbol, quantity):
-    global JWT_TOKEN
-    global session
-    global portfolio_id
+def remove_stock_from_portfolio(symbol, quantity):
+    global JWT_TOKEN, session, portfolio_id, CSRF_TOKEN
+    last_price = get_last_price()
 
-    url = baseUrl+'user/removestock'
-    payload = {'email': email, 'symbol': symbol, 'quantity': quantity,'id': portfolio_id}
-    headers = {'Authorization': 'Bearer ' + JWT_TOKEN}
-    response = session.post(url, data=payload, headers=headers, verify=False)
-    trading_portfolio = next((p for p in portfolioResponse.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
+
+    url = baseUrl+'user/remstock'
+    payload = {'symbol': symbol, 'quantity': quantity,'id': portfolio_id,'price': last_price}
+
+    response = session.post(url, data=payload, verify=False)
+    trading_portfolio = next((p for p in response_data['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
     #trading_portfolio = next((p for p in response.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
     if response.status_code == 200:
         if trading_portfolio:
@@ -63,9 +76,11 @@ def fetch_trading_portfolio():
     global JWT_TOKEN
     global session
     global portfolio_id
+    global CSRF_TOKEN
 
     url = baseUrl+'user/getallportforuser'
-    headers = {'Authorization': 'Bearer ' + JWT_TOKEN}
+    headers = {'Authorization': 'Bearer ' + JWT_TOKEN,
+    'xsrf-token': CSRF_TOKEN}
     portfolioResponse = session.get(url, headers=headers, verify=False)
     if portfolioResponse.status_code == 200:
         trading_portfolio = next((p for p in portfolioResponse.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
@@ -81,13 +96,55 @@ def fetch_trading_portfolio():
         return None
 
 
-def login(email, password):
+def fetch_user_data_api():
     global JWT_TOKEN
     global session
+    global CSRF_TOKEN
+
+    url = baseUrl+'user/verify'
+    headers = {'Authorization': 'Bearer ' + JWT_TOKEN,'xsrf-token': CSRF_TOKEN}
+    userDataResponse = session.get(url, headers=headers, verify=False)
+    if userDataResponse.status_code == 200:
+        return userDataResponse.json()['data']
+    else:
+        show_error_dialog('Failed to fetch user data!')
+        return None
+
+
+def logout():
+    global JWT_TOKEN, session,INITIAL_JWT_TOKEN,INITIAL_CSRF_TOKEN, CSRF_TOKEN
+
+    url = baseUrl+'user/logout'
+    response = session.get(url, verify=False)
+    response_data = response.json()
+    if response.status_code == 200:
+
+        session.cookies.clear()
+        session.headers.clear()
+
+        JWT_TOKEN = copy.deepcopy(INITIAL_JWT_TOKEN)
+        CSRF_TOKEN = copy.deepcopy(INITIAL_CSRF_TOKEN)
+
+        show_error_dialog(response_data.get('message', ''))
+        return True
+    else:
+        show_error_dialog(response_data.get('message', ''))
+        return False
+
+
+def login(email, password):
+    global JWT_TOKEN, session, CSRF_TOKEN, userEmail, userPassword
+    if email != userEmail and password != userPassword:
+        userEmail = email
+        userPassword = password
 
     url = baseUrl+'user/login'
     portfolio_payload = {'email': email}
     payload = {'email': email, 'password': password}
+    session.headers.update({'Accept': 'application/json'})
+    session.headers.update({'Access-Control-Allow-Origin': '*'})
+    session.headers.update({'Access-Control-Allow-Credentials': 'true'})
+
     try:
         response = session.post(url, data=payload, verify=False)
         if response.status_code == 200:
@@ -99,7 +156,18 @@ def login(email, password):
             }
 
             JWT_TOKEN = response.json()['data']['token']
-            return userdata, None
+            csrf_token = session.get(baseUrl+'/user/csrf-token', verify=False)
+            if csrf_token.status_code == 200:
+                CSRF_TOKEN = csrf_token.json().get('token', None)
+
+                #adding JWT and CSRF token to the header
+                session.headers.update({'Authorization': 'Bearer ' + JWT_TOKEN})
+                session.headers.update({'xsrf-token': CSRF_TOKEN})
+
+                #session.headers.update({'xsrf-token': CSRF_TOKEN})
+                return userdata, None
+            else:
+                return None, 'Failed to fetch CSRF token!'
         else:
            error_message = response.json().get('message', 'Login failed with status code {}'.format(response.status_code))
            return None, error_message
@@ -107,6 +175,8 @@ def login(email, password):
         return None, str(e)
 
 class LoginDialog(QDialog):
+    global userEmail, userPassword
+
     def __init__(self):
         super().__init__()
         self.user_data = None
@@ -120,7 +190,7 @@ class LoginDialog(QDialog):
         self.name_input = QLineEdit()
         self.name_input.setFixedHeight(50)
         self.name_input.setStyleSheet("font-size: 18px;")
-        self.name_input.setText("ikalpana74@gmail.com")
+        self.name_input.setText(userEmail)
         self.layout.addWidget(self.name_input)
 
         self.password_label = QLabel('Password:')
@@ -131,7 +201,7 @@ class LoginDialog(QDialog):
         self.password_input.setFixedHeight(50)
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setStyleSheet("font-size: 18px;")
-        self.password_input.setText("Nightiee@0014")
+        self.password_input.setText(userPassword)
         self.layout.addWidget(self.password_input)
 
         self.login_button = QPushButton('Login')
@@ -210,7 +280,11 @@ def show_logout_dialog():
 
     result = login_dialog.exec_()
     if result == QDialog.Accepted:
-        return True
+        isloggedout = logout()
+        if isloggedout:
+            return True
+        else:
+            return False
     else:
         print('Logout canceled')
         return False

@@ -12,7 +12,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from data_process import process_json_data
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from auth import show_login_dialog, show_logout_dialog, fetch_trading_portfolio,add_stock_to_portfolio
+from auth import show_login_dialog, show_logout_dialog, fetch_trading_portfolio,add_stock_to_portfolio,fetch_user_data_api,remove_stock_from_portfolio
 import websockets
 import json
 from regression import regression_plot
@@ -21,7 +21,7 @@ from other_data import fetch_prediction
 from timeseries import time_series_analysis
 from global_var import *
 from ws_socket import fetch_live_portfolio
-from data_fetch import fetch_data, time_frame_manipulation
+from data_fetch import fetch_data, time_frame_manipulation,fetch_symbol_model_value
 
 #convert all these to settings later
 # SecurityName = 'NEPSE'
@@ -43,6 +43,7 @@ async def fetch_portfolio_wss():
 
 
 def calculate_sma(df, period: int = 50):
+
     sma_data = pd.DataFrame({
         'time': df['date'],
         f'SMA {period}': df['close'].rolling(window=period).mean()
@@ -71,6 +72,20 @@ async def buy_stock(df):
     global userPortfolio
     if isLoggedin:
         userPortfolio = add_stock_to_portfolio(Chart.topbar['symbol'].value, default_quantity)
+        await fetch_user_data()
+
+        if userPortfolio:
+            update_portfolio_table(Chart)
+    else:
+        await login_user(Chart)
+
+async def sell_stock(df):
+    global isLoggedin
+    global userPortfolio
+    if isLoggedin:
+        userPortfolio = remove_stock_from_portfolio(Chart.topbar['symbol'].value, default_quantity)
+        await fetch_user_data()
+
         if userPortfolio:
             update_portfolio_table(Chart)
     else:
@@ -84,14 +99,22 @@ async def fetch_user_portfolio():
     else:
         print("Failed to fetch user portfolio")
 
-async def login_user(chart):
-    global isLoggedin
+async def fetch_user_data(): #for later refresh calls to get updated user data after buy or sell occurs
     global userData
+    userData = fetch_user_data_api()
+
+async def login_user(chart):
+    global isLoggedin,userData,userPortfolio, INITIAL_USER_PORTFOLIO,INITIAL_USER_DATA
     if isLoggedin:
         logout_data = show_logout_dialog()
         if logout_data:
-            chart.topbar['login'].set(user['name'])
+            userPortfolio = copy.deepcopy(INITIAL_USER_PORTFOLIO)
+            userData = copy.deepcopy(INITIAL_USER_DATA)
+
+            chart.topbar['login'].set(userData['name'])
+            clear_portfolio_table(chart)
             isLoggedin = False
+
     else :
         userData = show_login_dialog()
         if userData:
@@ -174,9 +197,14 @@ async def on_search(chart, searched_string):
     new_data = await fetch_data(searched_string, chart.topbar['timeframe'].value)
     if new_data is None or new_data.empty:
         return
+
     chart.topbar['symbol'].set(searched_string)
+    update_algo_table(chart)
     chart.watermark(searched_string + ' ' + chart.topbar['timeframe'].value)
-    await recalculate_dataset(new_data)
+
+    if hasattr(chart, 'regression_line'):
+        await recalculate_dataset(new_data)
+
     chart.set(new_data)
 
 async def on_timeframe_selection(chart):
@@ -184,8 +212,12 @@ async def on_timeframe_selection(chart):
     new_data = await fetch_data(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
     if new_data is None or new_data.empty:
         return
+
     chart.watermark(chart.topbar['symbol'].value + ' ' + chart.topbar['timeframe'].value)
-    await recalculate_dataset(new_data)
+    update_algo_table(chart)
+    if hasattr(chart, 'regression_line'):
+        await recalculate_dataset(new_data)
+
     chart.set(new_data, True)
 
 async def take_screenshot(key):
@@ -237,8 +269,44 @@ async def auto_refresh(chart):
 def on_row_click(row):
     print(f'Row Clicked: {row}')
 
+def create_algo_table(chart):
+    global algo_names
+    table = Chart.create_table(width=0.3, height=0.15,
+                headings=('Model', 'Accuracy'),
+                widths=(0.2, 0.2),
+                alignments=('center', 'center'),
+                position='right', func=on_row_click)
+
+    table.header(1)
+    table.header[0] = 'Prediction Table'
+    table.format('Accuracy', f'{table.VALUE} %')
+
+    data = fetch_symbol_model_value(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
+    if isinstance(data, dict):
+        for model, accuracy in data.items():
+            table.new_row(model, accuracy)
+
+    table.footer(2)
+    table.footer[0] = 'Nepse Probability:'
+    table.footer[1] = basic_prediction_result[0]['prediction']
+
+    chart.algo_table = table
+
+def update_algo_table(chart):
+    global algo_names
+    if hasattr(chart, 'algo_table'):
+        table = chart.algo_table
+        table.clear()
+
+        data = fetch_symbol_model_value(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
+        if isinstance(data, dict):
+            for model, accuracy in data.items():
+                table.new_row(model, accuracy)
+
+        table.footer[1] = basic_prediction_result[0]['prediction']
+
 def create_portfolio_table(chart):
-    table = chart.create_table(width=0.3, height=0.3,
+    table = chart.create_table(width=0.3, height=0.2,
                                headings=('Symbol', 'Quantity', 'WACC', 'Total Cost', 'Current Value', 'P&L','%'),
                                widths=(0.2, 0.1, 0.1, 0.2, 0.2, 0.2,0.2),alignments=('center', 'center', 'center', 'center', 'center','center'),func=on_portfolio_row_click)
     table.format('WACC', f'Rs  {table.VALUE}')
@@ -249,12 +317,33 @@ def create_portfolio_table(chart):
 
     table.new_row('No Stocks', 0, 0, 0, 0, 0,0)
     table.header(1)
-    table.header[0] = userData[0]['name'] + ' Portfolio'
+    table.header[0] = userData['name'] + ' Portfolio'
 
     table.footer(7)
     table.footer[0] = 'Total:'
+    table.footer[1] = str(userPortfolio['totalunits'])+" Unit"
+    table.footer[2] = ' '
+    table.footer[3] = "Rs "+ str(userPortfolio['portfoliocost'])
+    table.footer[4] = "Rs "+ str(userPortfolio['portfoliovalue'])
+    table.footer[5] = "Rs "+ str(userPortfolio['portgainloss'])
+    table.footer[6] = str(userPortfolio['portfolioPercentage']) + "%"
 
     chart.portfolio_table = table
+
+def clear_portfolio_table(chart):
+    if hasattr(chart, 'portfolio_table'):
+        table = chart.portfolio_table
+        table.clear()
+
+        table.header[0] = userData['name'] + ' Portfolio'
+        table.new_row('No Stocks', 0, 0, 0, 0, 0,0)
+        table.footer[0] = 'Total:'
+        table.footer[1] = str(userPortfolio['totalunits'])+" Unit"
+        table.footer[2] = ' '
+        table.footer[3] = "Rs "+ str(userPortfolio['portfoliocost'])
+        table.footer[4] = "Rs "+ str(userPortfolio['portfoliovalue'])
+        table.footer[5] = "Rs "+ str(userPortfolio['portgainloss'])
+        table.footer[6] = str(userPortfolio['portfolioPercentage']) + "%"
 
 def update_portfolio_table(chart):
     if hasattr(chart, 'portfolio_table'):
@@ -264,8 +353,7 @@ def update_portfolio_table(chart):
         table.header[0] = userData['name'] + ' Portfolio '+ ' (Balance Rs '+ str(userData['userAmount']) + ')'
 
         for stock in userPortfolio['stocks']:
-            percentage = round((stock['currentprice'] - stock['costprice']) / stock['costprice'] * 100, 0)
-            row = table.new_row(stock['symbol'], stock['quantity'], stock['wacc'], stock['costprice'],stock['currentprice'], stock['netgainloss'],percentage)
+            row = table.new_row(stock['symbol'], stock['quantity'], stock['wacc'], stock['costprice'],stock['currentprice'], stock['netgainloss'],stock['netgainlossPercent'])
             row.background_color('P&L', 'green' if row['P&L'] > 0 else 'red')
 
         table.footer[1] = str(userPortfolio['totalunits'])+" Unit"
@@ -280,25 +368,28 @@ def update_portfolio_table(chart):
         create_portfolio_table(chart)
 
 async def on_portfolio_row_click(row):
-    global isLoggedin, fetch_data
+    global isLoggedin, fetch_data, Chart
     if isLoggedin:
         new_data = await fetch_data(row['Symbol'], Chart.topbar['timeframe'].value)
         if new_data is None or new_data.empty:
             return
         Chart.topbar['symbol'].set(row['Symbol'])
+        update_algo_table(Chart)
         Chart.watermark(row['Symbol'] + ' ' + Chart.topbar['timeframe'].value)
-        await recalculate_dataset(new_data)
+        if hasattr(Chart, 'regression_line'):
+            await recalculate_dataset(new_data)
+
         Chart.set(new_data)
 
 # def buy_stock(chart):
 #     print ("Buying stock")
 
-def sell_stock(chart):
-    print ("Selling stock")
+# def sell_stock(chart):
+#     print ("Selling stock")
 
 
 async def main():
-    global Chart, fetch_data
+    global Chart, fetch_data,algo_names
 
     df = await fetch_data(defaultSymbol, defaultTimeFrame)
     if df is None:
@@ -311,7 +402,7 @@ async def main():
     Chart.watermark(defaultSymbol + ' ' + defaultTimeFrame)
     Chart.topbar.button('login', 'Login', func= login_user)
     Chart.topbar.textbox('symbol', defaultSymbol)
-    Chart.topbar.menu('algo', ('Algorithms','Regression','TimeSeries', 'Algorithm1', 'Algorithm2'), default='Algorithms', func=showAlgorithmGUI)
+    Chart.topbar.menu('algo', ('Algorithms', *algo_names), default='Algorithms', func=showAlgorithmGUI)
     Chart.topbar.switcher('timeframe', ('1Min', '5Min', '10Min', '15Min','1D'), default=defaultTimeFrame, func= on_timeframe_selection)
     Chart.events.search += on_search
     Chart.topbar.button('screenshot', 'Screenshot', func= take_screenshot)
@@ -329,6 +420,7 @@ async def main():
     subchart.topbar.switcher('timeframe', ('1Min', '5Min', '10Min'), default=SubchartTimeFrame, func= on_timeframe_selection)
     subchart.events.search += on_search
     subchart.topbar.button('autorefresh_button', 'AutoRefresh Off', func=auto_refresh)
+    #subchart.topbar.button('max', FULLSCREEN, False, align='right', func=on_max)
 
     df2 = await fetch_data(SubchartSecurity, SubchartTimeFrame)
 
@@ -345,45 +437,12 @@ async def main():
 #sma
     calculate_sma(df)
 
-#table2 #algorithm table
-    table2 = Chart.create_table(width=0.3, height=0.1,
-                    headings=('Model', 'R-squared', 'Accuracy:'),
-                    widths=(0.2, 0.1, 0.2),
-                    alignments=('center', 'center', 'right'),
-                    position='left', func=on_row_click)
-
-    table2.header(1)
-    table2.header[0] = 'Algorithm Table'
-    table2.format('PL (rs)', f'£ {table2.VALUE}')
-    table2.format('Change', f'{table2.VALUE} %')
-
-    table2.new_row(Chart.topbar['algo'].value, 3, 0)
-
-    table2.footer(2)
-    table2.footer[0] = 'Selected:'
-
 #fetch prediction data
     await fetch_prediction_data()
     #table2.footer[1] = basic_prediction_result[0]['prediction']
 
 #table3 #Total Accuracy table
-    table3 = Chart.create_table(width=0.3, height=0.1,
-                    headings=('Model', 'R-squared', 'Accuracy:'),
-                    widths=(0.2, 0.1, 0.2),
-                    alignments=('center', 'center', 'right'),
-                    position='right', func=on_row_click)
-    table3.header(1)
-    table3.header[0] = 'Prediction Table'
-    table3.format('PL (rs)', f'£ {table3.VALUE}')
-    table3.format('Change', f'{table3.VALUE} %')
-
-    table3.new_row(Chart.topbar['algo'].value, 3, 0)
-
-    table3.footer(2)
-    table3.footer[0] = 'Probability:'
-    table3.footer[1] = basic_prediction_result[0]['prediction']
-
-
+    create_algo_table(Chart)
 #table #portfolio table
     create_portfolio_table(Chart)
 #end of table

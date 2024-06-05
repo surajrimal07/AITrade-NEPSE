@@ -11,18 +11,6 @@ from global_var import baseUrl
 import os
 
 def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True):
-    # url = f"{baseUrl}getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
-    # #url = f'https://api.zorsha.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}'
-    # response = requests.get(url, verify=False)
-
-    # if response.status_code != 200:
-    #     print(f"Failed to fetch data from {url}, probably the symbol is not available.")
-    #     return None
-
-    # data = process_json_data(response.json(), timeFrame)
-
-    # df = pd.DataFrame(data)
-
     folder_name = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_data", f"{SecurityName}", f"{timeFrame}")
     csv_path = os.path.join(folder_name, f"{SecurityName}_{timeFrame}.csv")
 
