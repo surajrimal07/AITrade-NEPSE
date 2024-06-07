@@ -49,6 +49,25 @@ async def fetch_available_symbols():
         print(f"Failed to fetch data from {url}")
         return None
 
+async def fetch_tick_data(SecurityName, timeFrame):
+    global time_frame_manipulation, baseUrl
+    print(f"getting tick bar data for {SecurityName} {timeFrame}")
+    manipulatedTimeFrame = time_frame_manipulation(timeFrame)
+    url = baseUrl+'/getcompanyohlc?symbol=' + SecurityName + '&timeFrame=' + manipulatedTimeFrame + '&intradayupdate=true'
+
+    response = requests.get(url,verify=False)
+    if response.status_code == 200:
+        symbol_data = process_json_data(response.json(),manipulatedTimeFrame)
+        folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_data", f"{SecurityName}", manipulatedTimeFrame)
+        os.makedirs(folder_path, exist_ok=True)
+
+        csv_path = os.path.join(folder_path, f"{SecurityName}_{manipulatedTimeFrame}.csv")
+        symbol_data.to_csv(csv_path, index=False)
+
+        return symbol_data
+    else:
+        return None
+
 def save_symbol_model_value(symbol, timeframe, model, accuracy):
     global algo_names
     folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model")
@@ -86,14 +105,21 @@ def fetch_symbol_model_value(symbol, timeframe):
                 missing_models = [model for model in algo_names if model not in trained_models]
 
                 for model in missing_models:
-                    available_models[model] = "Train the model please"
+                    available_models[model] = "N/A"
 
                 return available_models
             else:
-                return {model: "Train the model please" for model in algo_names}
+                return {model: "N/A" for model in algo_names}
         else:
-            return {model: "Train the model please" for model in algo_names}
+            return {model: "N/A" for model in algo_names}
 
 
+def checkIfModelExists(model_name, symbol_name, time_frame):
+    model_data = fetch_symbol_model_value(symbol_name, time_frame)
+    if model_name in model_data and model_data[model_name] != 'N/A':
+        return True
+    return False
+
+# print(checkIfModelExists('LSMT','NEPSE','1D'))
 
 #print(fetch_symbol_model_value('NEPSE','5'))

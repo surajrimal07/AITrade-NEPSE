@@ -1,23 +1,53 @@
 {
-  "NEPSE": {
-    "1D": {
-      "Regression": "70",
-      "TimeSeries": "30",
-      "LSMT": "80",
-      "Deep_learning": "90",
-      "custom_algorithm": "50"
+    "NEPSE": {
+        "1D": {
+            "Regression": 74.36,
+            "TimeSeries": 70.41,
+            "LSMT": "80",
+            "Deep_learning": "90",
+            "custom_algorithm": "50"
+        },
+        "1Min": {
+            "Regression": "70",
+            "TimeSeries": "30",
+            "LSMT": "80",
+            "Deep_learning": "90",
+            "custom_algorithm": "50"
+        },
+        "5Min": {
+            "Regression": "70",
+            "TimeSeries": "30",
+            "LSMT": "80"
+        },
+        "1": {
+            "Regression": 13.09,
+            "TimeSeries": 74.57
+        }
     },
-    "1Min": {
-      "Regression": "70",
-      "TimeSeries": "30",
-      "LSMT": "80",
-      "Deep_learning": "90",
-      "custom_algorithm": "50"
+    "KKHC": {
+        "1D": {
+            "Regression": 16.321765483923212
+        }
     },
-    "5Min": {
-      "Regression": "70",
-      "TimeSeries": "30",
-      "LSMT": "80"
+    "NRIC": {
+        "1D": {
+            "Regression": 33.62475736498814
+        }
+    },
+    "BBC": {
+        "1D": {
+            "TimeSeries": 73.62,
+            "Regression": 26.63
+        }
+    },
+    "NBBL": {
+        "1D": {
+            "Regression": 9.0
+        }
+    },
+    "HEI": {
+        "1D": {
+            "Regression": 71.01
+        }
     }
-  }
 }

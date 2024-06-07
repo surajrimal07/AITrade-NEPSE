@@ -12,7 +12,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from data_process import process_json_data
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from auth import show_login_dialog, show_logout_dialog, fetch_trading_portfolio,add_stock_to_portfolio,fetch_user_data_api,remove_stock_from_portfolio
+from auth import show_login_dialog, show_logout_dialog, fetch_trading_portfolio,add_stock_to_portfolio,fetch_user_data_api,remove_stock_from_portfolio,show_model_not_trained_dialog
 import websockets
 import json
 from regression import regression_plot
@@ -21,7 +21,10 @@ from other_data import fetch_prediction
 from timeseries import time_series_analysis
 from global_var import *
 from ws_socket import fetch_live_portfolio
-from data_fetch import fetch_data, time_frame_manipulation,fetch_symbol_model_value
+from data_fetch import fetch_data, time_frame_manipulation,fetch_symbol_model_value,fetch_tick_data, checkIfModelExists
+import signal
+
+#from model.Run_LSTM_Model import WaitDialog, ModelThread
 
 #convert all these to settings later
 # SecurityName = 'NEPSE'
@@ -49,9 +52,6 @@ def calculate_sma(df, period: int = 50):
         f'SMA {period}': df['close'].rolling(window=period).mean()
     }).dropna()
 
-
-    # Chart.sma_line = Chart.create_line('SMA 50')
-    # Chart.sma_line.set(sma_data)
 
     if hasattr(Chart, 'sma_line'):
         Chart.sma_line.set(sma_data)
@@ -126,9 +126,30 @@ async def login_user(chart):
 def showAlgorithmGUI(chart):
     global time_frame_manipulation
     if chart.topbar['algo'].value == 'Regression':
-        regression_plot(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value))
+        if checkIfModelExists('Regression',chart.topbar['symbol'].value,time_frame_manipulation(chart.topbar['timeframe'].value)) == False:
+            show_model_not_trained_dialog()
+        else:
+            regression_plot(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value))
     elif chart.topbar['algo'].value == 'TimeSeries':
         time_series_analysis(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value))
+    elif chart.topbar['algo'].value == 'LSMT':
+        if checkIfModelExists('LSMT',chart.topbar['symbol'].value,time_frame_manipulation(chart.topbar['timeframe'].value)) == False:
+            show_model_not_trained_dialog()
+        else:
+            import sys
+            import os
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+            from Run_LSTM_Model import run_model_and_show_dialog
+            run_model_and_show_dialog(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value))
+    elif chart.topbar['algo'].value == 'custom_algorithm':
+        import sys
+        import os
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+        from custom_algorithm import show_custom_Chart
+        show_custom_Chart(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value, 14, max_points=400))
+    elif chart.topbar['algo'].value == 'Deep_learning':
+        if checkIfModelExists('Deep_learning',chart.topbar['symbol'].value,time_frame_manipulation(chart.topbar['timeframe'].value)) == False:
+            show_model_not_trained_dialog()
 
 
 async def perform_regression_analysis(df):
@@ -155,12 +176,6 @@ async def perform_regression_analysis(df):
     rmse = np.sqrt(mse)
     accuracy_percent = r_squared * 100
 
-    # print(f"R-squared: {r_squared:.2f}")
-    # print(f"Mean Absolute Error (MAE): {mae:.2f}")
-    # print(f"Mean Squared Error (MSE): {mse:.2f}")
-    # print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
-    # print(f"Accuracy: {accuracy_percent:.2f}%")
-
     # Update or create the regression line
     x_values = np.array(range(1, len(df) + 2))
     y_values = slope * x_values + intercept
@@ -176,17 +191,6 @@ async def perform_regression_analysis(df):
         Chart.regression_line = Chart.create_line('RegressionLine', color='WHITE',price_line = False,price_label = False,width=1)
         Chart.regression_line.set(pd.DataFrame({'time': df_truncated['date'], 'RegressionLine': y_values_truncated}))
 
-async def fetch_tick_data(SecurityName, timeFrame):
-    global time_frame_manipulation, baseUrl
-    print(f"getting tick bar data for {SecurityName} {timeFrame}")
-    manipulatedTimeFrame = time_frame_manipulation(timeFrame)
-    url = baseUrl+'/getcompanyohlc?symbol=' + SecurityName + '&timeFrame=' + manipulatedTimeFrame + '&intradayupdate=true'
-
-    response = requests.get(url,verify=False)
-    if response.status_code == 200:
-        return process_json_data(response.json(),manipulatedTimeFrame)
-    else:
-        return None
 
 async def recalculate_dataset(df):
     await perform_regression_analysis(df)
@@ -262,12 +266,37 @@ async def auto_refresh(chart):
             new_data = await fetch_tick_data(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
             if new_data is not None and not new_data.empty:
                 chart.set(new_data, True)
+            if isLoggedin:
+                await fetch_user_portfolio()
+            if hasattr(chart, 'regression_line'):
+                await recalculate_dataset(new_data)
 
     auto_refresh_task = asyncio.create_task(refresh(chart))
 
 
 def on_row_click(row):
-    print(f'Row Clicked: {row}')
+    if row['Model'] == 'Regression':
+        regression_plot(Chart.topbar['symbol'].value, time_frame_manipulation(Chart.topbar['timeframe'].value))
+    elif row['Model'] == 'TimeSeries':
+        time_series_analysis(Chart.topbar['symbol'].value, time_frame_manipulation(Chart.topbar['timeframe'].value))
+    elif row['Model'] == 'LSMT':
+        if checkIfModelExists('LSMT',Chart.topbar['symbol'].value,time_frame_manipulation(Chart.topbar['timeframe'].value)) == False:
+            show_model_not_trained_dialog()
+        else:
+            import sys
+            import os
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+            from Run_LSTM_Model import run_model_and_show_dialog
+            run_model_and_show_dialog(Chart.topbar['symbol'].value, time_frame_manipulation(Chart.topbar['timeframe'].value))
+    elif row['Model'] == 'custom_algorithm':
+        import sys
+        import os
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+        from custom_algorithm import show_custom_Chart
+        show_custom_Chart(Chart.topbar['symbol'].value, time_frame_manipulation(Chart.topbar['timeframe'].value))
+    elif row['Model'] == 'Deep_learning':
+        if checkIfModelExists('Deep_learning',Chart.topbar['symbol'].value,time_frame_manipulation(Chart.topbar['timeframe'].value)) == False:
+            show_model_not_trained_dialog()
 
 def create_algo_table(chart):
     global algo_names
@@ -354,7 +383,7 @@ def update_portfolio_table(chart):
 
         for stock in userPortfolio['stocks']:
             row = table.new_row(stock['symbol'], stock['quantity'], stock['wacc'], stock['costprice'],stock['currentprice'], stock['netgainloss'],stock['netgainlossPercent'])
-            row.background_color('P&L', 'green' if row['P&L'] > 0 else 'red')
+            row.background_color('P&L', 'green' if row['P&L'] > 0 else ('grey' if row['P&L'] == 0 else 'red'))
 
         table.footer[1] = str(userPortfolio['totalunits'])+" Unit"
         table.footer[2] = ' '
@@ -380,13 +409,6 @@ async def on_portfolio_row_click(row):
             await recalculate_dataset(new_data)
 
         Chart.set(new_data)
-
-# def buy_stock(chart):
-#     print ("Buying stock")
-
-# def sell_stock(chart):
-#     print ("Selling stock")
-
 
 async def main():
     global Chart, fetch_data,algo_names
@@ -456,6 +478,7 @@ async def main():
    # Chart.marker(text=f"Predicted Next Index Value")
 
     await asyncio.gather(Chart.show_async(block=True), auto_refresh(Chart))
+    signal.signal(signal.SIGINT, lambda sig, frame: sys.exit(0))
 
 if __name__ == '__main__':
     asyncio.run(main())

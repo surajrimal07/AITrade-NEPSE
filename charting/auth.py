@@ -63,6 +63,7 @@ def remove_stock_from_portfolio(symbol, quantity):
     payload = {'symbol': symbol, 'quantity': quantity,'id': portfolio_id,'price': last_price}
 
     response = session.post(url, data=payload, verify=False)
+    response_data = response.json()
     trading_portfolio = next((p for p in response_data['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
     #trading_portfolio = next((p for p in response.json()['data']['portfolio'] if p['name'] == 'tradingdashboard'), None)
     if response.status_code == 200:
@@ -260,6 +261,25 @@ class LogoutDialog(QDialog):
             QMessageBox.information(self, 'Logout', 'Logout successful!')
             self.accept()
 
+class ModelNotTrainedDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Model Not Trained')
+        self.layout = QVBoxLayout()
+
+        self.message_label = QLabel('Model not trained for the selected stock!')
+        self.message_label.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.message_label)
+
+        self.ok_button = QPushButton('OK')
+        self.ok_button.setFixedHeight(60)
+        self.ok_button.setStyleSheet("font-size: 18px;")
+        self.ok_button.clicked.connect(self.accept)
+        self.layout.addWidget(self.ok_button)
+
+        self.setLayout(self.layout)
+        self.setFixedWidth(400)
+
 def show_login_dialog():
     app = QApplication(sys.argv)
     login_dialog = LoginDialog()
@@ -288,3 +308,9 @@ def show_logout_dialog():
     else:
         print('Logout canceled')
         return False
+
+def show_model_not_trained_dialog():
+    app = QApplication(sys.argv)
+    dialog = ModelNotTrainedDialog()
+    dialog.setModal(True)
+    dialog.exec_()

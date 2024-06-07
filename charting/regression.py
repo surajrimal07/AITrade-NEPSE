@@ -9,6 +9,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from global_var import baseUrl
 import os
+from data_fetch import save_symbol_model_value
 
 def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True):
     folder_name = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_data", f"{SecurityName}", f"{timeFrame}")
@@ -41,7 +42,10 @@ def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True)
     mae = mean_absolute_error(y, y_pred)
     mse = mean_squared_error(y, y_pred)
     rmse = np.sqrt(mse)
-    accuracy_percent = r_squared * 100
+    #accuracy_percent = r_squared * 100
+    accuracy_percent = round(r_squared * 100, 2)
+
+    save_symbol_model_value(SecurityName, timeFrame, "Regression", accuracy_percent)
 
     # Extend data for forecasting
     future_dates = pd.date_range(start=df["Date (AD)"].max(), periods=forecast_periods + 1, freq='B')[1:]
@@ -49,7 +53,7 @@ def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True)
     future_y = reg.predict(future_x)
 
     # Plot data and regression line
-    plt.figure(num="Nepse Regression Analysis", figsize=(16, 8))
+    plt.figure(num= SecurityName+" Regression Analysis", figsize=(16, 8))
     plt.plot(df["Date (AD)"], df["Index Value"], "bo-", label="Index Value")
     plt.plot(df.iloc[-1]["Date (AD)"], next_index, "ro", label="Predicted Next Index Value")
 
@@ -82,11 +86,12 @@ def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True)
     plt.gca().xaxis.set_major_locator(plt.MaxNLocator(10))
     plt.xlabel("Date")
     plt.ylabel("Index Value")
-    plt.title("Nepal Stock Exchange NEPSE Index Value")
+    plt.title(SecurityName+ " Price value")
     plt.legend()
     plt.grid()
 
     if save_plot:
         plt.savefig("regression_graph.png")
 
+    plt.tight_layout()
     plt.show()

@@ -168,4 +168,4 @@ def train_lstm_model(symbol_name, timeframe):
     # Print final training and validation loss
     print(f"Training completed and model saved. Final training loss: {history.history['loss'][-1]:.4f}, Validation loss: {history.history['val_loss'][-1]:.4f}")
 
-train_lstm_model('NEPSE', '1D')
+train_lstm_model('NEPSE', '1')
