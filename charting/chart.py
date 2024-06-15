@@ -12,8 +12,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from data_process import process_json_data
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from auth import show_login_dialog, show_logout_dialog, fetch_trading_portfolio,add_stock_to_portfolio,fetch_user_data_api,remove_stock_from_portfolio,show_model_not_trained_dialog
-import websockets
+from auth import show_login_dialog, show_logout_dialog, fetch_trading_portfolio,add_stock_to_portfolio,fetch_user_data_api,remove_stock_from_portfolio,show_model_not_trained_dialog, show_toast
 import json
 from regression import regression_plot
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
@@ -24,13 +23,7 @@ from ws_socket import fetch_live_portfolio
 from data_fetch import fetch_data, time_frame_manipulation,fetch_symbol_model_value,fetch_tick_data, checkIfModelExists
 import signal
 from wordcloud_sentiment import show_sentiment_wordcloud
-
-#from model.Run_LSTM_Model import WaitDialog, ModelThread
-
-#convert all these to settings later
-# SecurityName = 'NEPSE'
-# timeFrame = '1D'
-
+from total_prediction import buy_sell_tradingBot
 
 # Disable SSL warnings on localhost with self signed certificate
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -246,16 +239,31 @@ async def auto_trade(chart):
     new_button_value = 'AutoTrade On' if chart.topbar['autoretrade_button'].value == 'AutoTrade Off' else 'AutoTrade Off'
     chart.topbar['autoretrade_button'].set(new_button_value)
 
-    # global auto_refresh_task
+    global auto_trade_task
 
-    # async def trade(chart):
-    #     while chart.topbar['autotrade_button'].value == 'AutoTrade On':
-    #         await asyncio.sleep(10 - (datetime.datetime.now().microsecond / 1_000_000))
-    #         new_data = await fetch_tick_data(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
-    #         if new_data is not None and not new_data.empty:
-    #             chart.set(new_data, True)
+    async def autotrade(chart):
+        while chart.topbar['autoretrade_button'].value == 'AutoTrade On':
+            if isLoggedin:
+                signal = await buy_sell_tradingBot(chart.topbar['symbol'].value, chart.topbar['timeframe'].value)
+                if signal:
+                    if signal == 'Buy':
+                        show_toast("Buy Signal Detected: Buying stock @ Market Price")
+                        await buy_stock(chart)
+                    elif signal == 'Sell':
+                        show_toast("Sell Signal Detected: Selling stock @ Market Price")
+                        await sell_stock(chart)
+                    else :
+                        show_toast("No signal found : "+signal)
+            else:
+                show_toast("Not Logged In: Please login to use this feature")
+                await login_user(chart)
+                if not isLoggedin:
+                    show_toast("Not Logged In: Turning off AutoTrade")
+                    chart.topbar['autoretrade_button'].set('AutoTrade Off')
 
-    # auto_refresh_task = asyncio.create_task(trade(chart))
+            await asyncio.sleep(10 - (datetime.datetime.now().microsecond / 1_000_000))
+
+    auto_trade_task = asyncio.create_task(autotrade(chart))
 
 async def auto_refresh(chart):
     new_button_value = 'AutoRefresh Off' if chart.topbar['autorefresh_button'].value == 'AutoRefresh On' else 'AutoRefresh On'
@@ -453,9 +461,9 @@ async def main():
         print('No data to display')
         exit(1)
 
-    # sub_line = subchart.create_line('SMA 50')
-    # sma_subchart = calculate_sma(df2, period=50)
-    # sub_line.set(sma_subchart)
+    sub_line = subchart.create_line('SMA 50')
+    sma_subchart = calculate_sma(df2, period=50)
+    sub_line.set(sma_subchart)
 
 ##end of subchart
 

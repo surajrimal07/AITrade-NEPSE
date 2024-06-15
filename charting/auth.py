@@ -12,9 +12,9 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 from global_var import *
 from data_process import get_last_price
 
-# def show_toast(message):
-#     app = QApplication.instance() or QApplication(sys.argv)
-#     QMessageBox.information(None, 'Error Occurred', f"Message: {message}")
+def show_toast(message):
+    app = QApplication.instance() or QApplication(sys.argv)
+    QMessageBox.information(None, 'Information', f"Message: {message}")
 
 def fetch_csrf_token():
     global CSRF_TOKEN

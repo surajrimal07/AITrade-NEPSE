@@ -11,7 +11,7 @@ from global_var import baseUrl
 import os
 from data_fetch import save_symbol_model_value
 
-def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True):
+def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True, only_data=False):
     folder_name = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_data", f"{SecurityName}", f"{timeFrame}")
     csv_path = os.path.join(folder_name, f"{SecurityName}_{timeFrame}.csv")
 
@@ -44,6 +44,9 @@ def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True)
     rmse = np.sqrt(mse)
     #accuracy_percent = r_squared * 100
     accuracy_percent = round(r_squared * 100, 2)
+
+    if only_data:
+        return accuracy_percent , next_index
 
     save_symbol_model_value(SecurityName, timeFrame, "Regression", accuracy_percent)
 
