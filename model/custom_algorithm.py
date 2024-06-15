@@ -54,10 +54,6 @@ def show_custom_Chart(SecurityName, timeFrame, period_Cus=14, max_points=500):
         print("Error: SecurityName and timeFrame must be provided if df is None.")
         return
 
-    # symbol_timeframe = f"{symbol}_{timeframe}"
-    # folder_name = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_data", f"{symbol}", f"{timeframe}")
-    # csv_path = os.path.join(folder_name, f"{symbol_timeframe}.csv")
-
     # Load data without parsing dates
     data = pd.read_csv(csv_path, parse_dates=['date'])
 
@@ -69,6 +65,8 @@ def show_custom_Chart(SecurityName, timeFrame, period_Cus=14, max_points=500):
     line30 = num_entries * [30]
     line75 = num_entries * [75]
     lines30_75 = pd.DataFrame({'30 limit': line30, '75 limit': line75}, index=Cus_series.index)
+
+    plt.switch_backend('TkAgg')
 
     # Plotting
     with plt.style.context('ggplot'):
@@ -100,35 +98,6 @@ def show_custom_Chart(SecurityName, timeFrame, period_Cus=14, max_points=500):
         plt.tight_layout()
 
         plt.show()
-
-# def generate_signals(data, period_Cus=14, overbought=75, oversold=30):
-#     Cus_series = calculate_Cus(data, period_Cus=period_Cus)
-#     signals = pd.DataFrame(index=data.index)
-#     signals['signal'] = 0.0
-
-#     signals['signal'][period_Cus:] = np.where((Cus_series >= overbought) & (Cus_series.shift(1) < overbought), -1, signals['signal'])
-#     signals['signal'][period_Cus:] = np.where((Cus_series <= oversold) & (Cus_series.shift(1) > oversold), 1, signals['signal'])
-
-#     return signals
-
-# def calculate_accuracy(data, signals):
-#     accuracy = []
-#     for i in range(1, len(signals)):
-#         if signals['signal'][i] == 1:  # Buy signal
-#             if data['close'][i] > data['close'][i - 1]:
-#                 accuracy.append(True)
-#             else:
-#                 accuracy.append(False)
-#         elif signals['signal'][i] == -1:  # Sell signal
-#             if data['close'][i] < data['close'][i - 1]:
-#                 accuracy.append(True)
-#             else:
-#                 accuracy.append(False)
-
-#     return sum(accuracy) / len(accuracy) * 100
-
-
-#show_custom_Chart('NEPSE', '1D', 14, max_points=400)
 
 def save_symbol_model_value(symbol, timeframe, model, accuracy):
     global algo_names

@@ -81,6 +81,7 @@ def regression_plot(SecurityName, timeFrame,forecast_periods=30, save_plot=True)
         bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="gray", lw=1),
     )
 
+    plt.switch_backend('TkAgg')
     plt.plot(df["Date (AD)"], reg.predict(x), "g--", label="Regression Line")
     plt.xticks(rotation=45, ha="right")
     plt.gca().xaxis.set_major_locator(plt.MaxNLocator(10))

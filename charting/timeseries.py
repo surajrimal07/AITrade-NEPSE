@@ -25,6 +25,7 @@ def time_series_analysis(SecurityName="NEPSE", timeFrame='1D', forecast_steps=50
 
     decomposition = seasonal_decompose(df['Index Value'], model='multiplicative', period=12)
 
+    plt.switch_backend('TkAgg')
     plt.figure(num= SecurityName+" Time Series Analysis", figsize=(16, 8))
     plt.subplot(311)
     plt.plot(df.index, df['Index Value'], label='Original')

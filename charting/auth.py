@@ -23,6 +23,7 @@ def fetch_csrf_token():
     url = baseUrl+'/user/csrf-token'
     response = session.get(baseUrl+'/user/csrf-token', verify=False)
     if response.status_code == 200:
+        CSRF_TOKEN = response.json().get('token', None)
 #        CSRF_TOKEN = response.json().get('token', None)
         session.headers.update({'xsrf-token': CSRF_TOKEN})
         return CSRF_TOKEN
@@ -147,33 +148,121 @@ def login(email, password):
     session.headers.update({'Access-Control-Allow-Credentials': 'true'})
 
     try:
-        response = session.post(url, data=payload, verify=False)
-        if response.status_code == 200:
+        csrf_token = session.get(baseUrl+'/user/csrf-token', verify=False)
+        if csrf_token.status_code == 200:
+            CSRF_TOKEN = csrf_token.json().get('token', None)
+            session.headers.update({'xsrf-token': CSRF_TOKEN})
 
-            userdata = {
+            response = session.post(url, data=payload, verify=False)
+
+            if response.status_code == 200:
+
+                userdata = {
                 'email': response.json()['data']['email'],
                 'name': response.json()['data']['name'],
                 'userAmount': response.json()['data']['userAmount']
-            }
+                }
 
-            JWT_TOKEN = response.json()['data']['token']
-            csrf_token = session.get(baseUrl+'/user/csrf-token', verify=False)
-            if csrf_token.status_code == 200:
-                CSRF_TOKEN = csrf_token.json().get('token', None)
+                JWT_TOKEN = response.json()['data']['token']
 
-                #adding JWT and CSRF token to the header
-                session.headers.update({'Authorization': 'Bearer ' + JWT_TOKEN})
-                session.headers.update({'xsrf-token': CSRF_TOKEN})
-
-                #session.headers.update({'xsrf-token': CSRF_TOKEN})
                 return userdata, None
+
             else:
-                return None, 'Failed to fetch CSRF token!'
+                error_message = response.json().get('message', 'Login failed with status code {}'.format(response.status_code))
+                return None, error_message
+
         else:
-           error_message = response.json().get('message', 'Login failed with status code {}'.format(response.status_code))
-           return None, error_message
+            return None, 'Failed to fetch CSRF token!'
+
     except Exception as e:
         return None, str(e)
+
+def signup(name, email, phone, password):
+    global JWT_TOKEN, session, CSRF_TOKEN
+
+    fetch_csrf_token()
+
+    url = baseUrl+'user/create'
+    payload = {'name': name, 'email': email, 'phone': phone, 'password': password}
+    response = session.post(url, data=payload, verify=False)
+    if response.status_code == 200:
+        return response.json()['data'], None
+    else:
+        error_message = response.json().get('message', 'Signup failed with status code {}'.format(response.status_code))
+        return None, error_message
+
+class SignupDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Signup to AI Trader')
+        self.layout = QVBoxLayout()
+
+        self.name_label = QLabel('Name:')
+        self.name_label.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.name_label)
+
+        self.name_input = QLineEdit()
+        self.name_input.setFixedHeight(50)
+        self.name_input.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.name_input)
+
+        self.phone_label = QLabel('Phone:')
+        self.phone_label.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.phone_label)
+
+        self.phone_input = QLineEdit()
+        self.phone_input.setFixedHeight(50)
+        self.phone_input.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.phone_input)
+
+        self.email_label = QLabel('Email:')
+        self.email_label.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.email_label)
+
+        self.email_input = QLineEdit()
+        self.email_input.setFixedHeight(50)
+        self.email_input.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.email_input)
+
+        self.password_label = QLabel('Password:')
+        self.password_label.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.password_label)
+
+        self.password_input = QLineEdit()
+        self.password_input.setFixedHeight(50)
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.password_input)
+
+        self.signup_button = QPushButton('Signup')
+        self.signup_button.setFixedHeight(60)
+        self.signup_button.setStyleSheet("font-size: 18px;")
+        self.signup_button.clicked.connect(self.on_signup)
+        self.layout.addWidget(self.signup_button)
+
+        self.cancel_button = QPushButton('Cancel')
+        self.cancel_button.setFixedHeight(60)
+        self.cancel_button.setStyleSheet("font-size: 18px;")
+        self.cancel_button.clicked.connect(self.reject)
+        self.layout.addWidget(self.cancel_button)
+
+        self.setLayout(self.layout)
+        self.setFixedWidth(400)
+
+    def on_signup(self):
+        name = self.name_input.text()
+        password = self.password_input.text()
+        email = self.email_input.text()
+        phone = self.phone_input.text()
+
+        user_data, error_message = signup(name, password,email, phone)
+        if user_data:
+            self.user_data = user_data
+            QMessageBox.information(self, 'Login Success', 'Welcome back {}!'.format(user_data['name']))
+            self.accept()
+        else:
+            error_message = error_message or 'Invalid credentials!'
+            QMessageBox.warning(self, 'Login Error', error_message)
 
 class LoginDialog(QDialog):
     global userEmail, userPassword
@@ -217,6 +306,12 @@ class LoginDialog(QDialog):
         self.cancel_button.clicked.connect(self.reject)
         self.layout.addWidget(self.cancel_button)
 
+        self.signup_button = QPushButton("Don't have an account? Signup")
+        self.signup_button.setFixedHeight(60)
+        self.signup_button.setStyleSheet("font-size: 18px;")
+        self.signup_button.clicked.connect(self.show_signup_dialog)
+        self.layout.addWidget(self.signup_button)
+
         self.setLayout(self.layout)
 
         self.setFixedWidth(400)
@@ -232,6 +327,10 @@ class LoginDialog(QDialog):
         else:
             error_message = error_message or 'Invalid credentials!'
             QMessageBox.warning(self, 'Login Error', error_message)
+
+    def show_signup_dialog(self):
+        signup_dialog = SignupDialog()
+        signup_dialog.exec_()
 
 
 class LogoutDialog(QDialog):

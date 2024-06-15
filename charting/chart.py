@@ -23,6 +23,7 @@ from global_var import *
 from ws_socket import fetch_live_portfolio
 from data_fetch import fetch_data, time_frame_manipulation,fetch_symbol_model_value,fetch_tick_data, checkIfModelExists
 import signal
+from wordcloud_sentiment import show_sentiment_wordcloud
 
 #from model.Run_LSTM_Model import WaitDialog, ModelThread
 
@@ -44,6 +45,8 @@ async def fetch_portfolio_wss():
         else:
             print("Failed to fetch portfolio data")
 
+def show_wordcloud(Chart):
+    show_sentiment_wordcloud()
 
 def calculate_sma(df, period: int = 50):
 
@@ -432,7 +435,7 @@ async def main():
     Chart.topbar.button('autoretrade_button', 'AutoTrade Off', func= auto_trade)
     Chart.topbar.button('buy_buttton', 'Buy', func=buy_stock )
     Chart.topbar.button('sell', 'Sell', func= sell_stock)
-    Chart.topbar.textbox('Settings')
+    Chart.topbar.button('wordcloud', 'Wordcloud', func= show_wordcloud)
 
 
 #subchart
@@ -451,7 +454,7 @@ async def main():
         exit(1)
 
     # sub_line = subchart.create_line('SMA 50')
-    # sma_subchart = await calculate_sma(df2, period=50)
+    # sma_subchart = calculate_sma(df2, period=50)
     # sub_line.set(sma_subchart)
 
 ##end of subchart

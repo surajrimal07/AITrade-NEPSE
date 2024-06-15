@@ -559,6 +559,8 @@ def plot_charts(train_dates, y_train_original, train_predictions, test_dates, y_
     formatted_test_dates = format_dates(test_dates, timeframe)
     formatted_latest_dates = format_dates(latest_dates, timeframe)
 
+    plt.switch_backend('TkAgg')
+
     x_labels = [f"{prediction_label[:-1]} {i + 1}" for i in range(len(predicted_prices))]
 
     fig1, ax1 = plt.subplots(figsize=(16, 10))
