@@ -20,7 +20,7 @@ def on_open(ws):
 
 def fetch_live_portfolio():
     global JWT_TOKEN
-    socketUrl = "wss://api.zorsha.com.np/?room=portfolio&jwt="+JWT_TOKEN
+    socketUrl = "wss://api.surajr.com.np/?room=portfolio&jwt="+JWT_TOKEN
     def start_websocket():
         ws = websocket.WebSocketApp(
             socketUrl ,

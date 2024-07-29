@@ -1,7 +1,7 @@
 {
     "NEPSE": {
         "1D": {
-            "Regression": 74.42,
+            "Regression": 74.8,
             "TimeSeries": 70.99,
             "LSMT": "80",
             "Deep_learning": "90",
@@ -20,8 +20,8 @@
             "LSMT": "80"
         },
         "1": {
-            "Regression": 13.09,
-            "TimeSeries": 74.57
+            "Regression": 30.28,
+            "TimeSeries": 74.22
         }
     },
     "KKHC": {

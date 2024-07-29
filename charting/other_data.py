@@ -7,7 +7,7 @@ import json
 from global_var import JWT_TOKEN, session
 
 async def fetch_prediction():
-    url = 'https://api.zorsha.com.np/api/heavyStocks'
+    url = 'https://api.surajr.com.np/api/heavyStocks'
     heavyStockResponse = requests.get(url, verify=False)
     if heavyStockResponse.status_code == 200:
         data = heavyStockResponse.json()

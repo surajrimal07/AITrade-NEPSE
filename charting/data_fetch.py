@@ -36,7 +36,7 @@ async def fetch_data(SecurityName, timeFrame):
         return None
 
 async def fetch_available_symbols():
-    url = 'https://localhost:4000/api/availablenepsecompanies'
+    url = 'https://surajr.com.np/api/availablenepsecompanies'
     response = requests.get(url, verify=False)
     if response.status_code == 200:
         json_data = response.json()

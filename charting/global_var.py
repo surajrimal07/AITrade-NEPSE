@@ -18,10 +18,10 @@ session.headers = headers
 
 portfolio_id = None
 
-#baseUrl = 'https://api.zorsha.com.np/api/'
-baseUrl = 'https://localhost:4000/api/'
+baseUrl = 'https://api.surajr.com.np/api/'
+#baseUrl = 'https://localhost:4000/api/'
 
-websocket_url = 'wss://localhost:8081/?room=portfolio&jwt='
+websocket_url = 'wss://socket.surajr.com.np/?room=portfolio&jwt='
 
 defaultSymbol = 'NEPSE'
 defaultTimeFrame = '1D'

@@ -164,7 +164,7 @@ def login(email, password):
                 }
 
                 JWT_TOKEN = response.json()['data']['token']
-
+                session.headers.update({'Authorization': 'Bearer ' + JWT_TOKEN})
                 return userdata, None
 
             else:

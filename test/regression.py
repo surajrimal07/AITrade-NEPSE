@@ -10,7 +10,7 @@
 # requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 # def regression_plot(SecurityName, timeFrame, save_plot=True):
-#     url = f'https://api.zorsha.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}'
+#     url = f'https://api.surajr.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}'
 #     response = requests.get(url, verify=False)
 
 #     if response.status_code != 200:
@@ -81,7 +81,7 @@ from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 def regression_plot(SecurityName="NEPSE", timeFrame="1D", df=None):
     if df is None:
-        url = f"https://api.zorsha.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
+        url = f"https://api.surajr.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
         response = requests.get(url, verify=False)
         if response.status_code == 200:
             data = process_json_data(response.json(), timeFrame)
@@ -169,7 +169,7 @@ def time_series_analysis(df=None, SecurityName=None, timeFrame=None):
             print("Error: SecurityName and timeFrame must be provided if df is None.")
             return
 
-        url = f"https://api.zorsha.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
+        url = f"https://api.surajr.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
         response = requests.get(url, verify=False)
         if response.status_code == 200:
             data = process_json_data(response.json(), timeFrame)

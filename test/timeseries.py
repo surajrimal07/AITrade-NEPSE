@@ -11,7 +11,7 @@ def time_series_analysis(SecurityName="NEPSE", timeFrame='1D', forecast_steps=50
         print("Error: SecurityName and timeFrame must be provided if df is None.")
         return
 
-    url = f"https://api.zorsha.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
+    url = f"https://api.surajr.com.np/api/getcompanyohlc?symbol={SecurityName}&timeFrame={timeFrame}"
     response = requests.get(url, verify=False)
     if response.status_code == 200:
         data = process_json_data(response.json(), timeFrame)

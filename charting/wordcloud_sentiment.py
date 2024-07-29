@@ -24,9 +24,9 @@ def preprocess_text(text):
 
 def show_sentiment_wordcloud():
     source_urls = [
-        f'https://api.zorsha.com.np/news?source=Mero%20Lagani',
-        'https://api.zorsha.com.np/news?source=ShareSansar',
-        'https://api.zorsha.com.np/news?keyword=nepse'
+        f'https://api.surajr.com.np/news?source=Mero%20Lagani',
+        'https://api.surajr.com.np/news?source=ShareSansar',
+        'https://api.surajr.com.np/news?keyword=nepse'
     ]
 
     combined_text = ''
