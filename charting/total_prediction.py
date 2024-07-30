@@ -1,4 +1,3 @@
-
 from other_data import fetch_prediction
 from regression import regression_plot
 import pandas as pd

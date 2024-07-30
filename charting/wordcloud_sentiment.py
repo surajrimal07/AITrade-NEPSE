@@ -2,8 +2,6 @@ import requests
 from wordcloud import WordCloud, STOPWORDS
 import matplotlib.pyplot as plt
 
-
-
 def fetch_data_from_source(source_url):
     response = requests.get(source_url)
     if response.status_code == 200:
