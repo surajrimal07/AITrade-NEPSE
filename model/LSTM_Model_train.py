@@ -4,11 +4,9 @@ import pandas as pd
 import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
 import math
-import os
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 import joblib
-from sklearn.model_selection import train_test_split
 
 def train_lstm_model(symbol_name, timeframe):
     # Symbol and folder name
@@ -88,4 +86,4 @@ def train_lstm_model(symbol_name, timeframe):
     # Print final training and validation loss
     print(f"Training completed and model saved. Final training loss: {history.history['loss'][-1]:.4f}, Validation loss: {history.history['val_loss'][-1]:.4f}")
 
-train_lstm_model('NEPSE', '1')
+train_lstm_model('NEPSE', '1D')

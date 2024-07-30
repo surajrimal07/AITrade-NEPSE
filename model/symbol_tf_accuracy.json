@@ -1,8 +1,8 @@
 {
     "NEPSE": {
         "1D": {
-            "Regression": 74.8,
-            "TimeSeries": 70.99,
+            "Regression": 74.36,
+            "TimeSeries": 59.37,
             "LSMT": "80",
             "Deep_learning": "90",
             "custom_algorithm": "50"
@@ -48,6 +48,16 @@
     "HEI": {
         "1D": {
             "Regression": 71.01
+        }
+    },
+    "HDL": {
+        "1D": {
+            "Regression": 20.59
+        }
+    },
+    "CBBL": {
+        "1D": {
+            "Regression": 1.53
         }
     }
 }

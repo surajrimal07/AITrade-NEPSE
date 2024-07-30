@@ -142,7 +142,7 @@ def showAlgorithmGUI(chart):
         import os
         sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
         from custom_algorithm import show_custom_Chart
-        show_custom_Chart(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value, 14, max_points=400))
+        show_custom_Chart(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value), 14, 500)
     elif chart.topbar['algo'].value == 'Deep_learning':
         if checkIfModelExists('Deep_learning',chart.topbar['symbol'].value,time_frame_manipulation(chart.topbar['timeframe'].value)) == False:
             show_model_not_trained_dialog()

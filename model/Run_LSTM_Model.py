@@ -472,7 +472,7 @@ def load_and_prepare_data(symbol_timeframe):
     df = pd.read_csv(csv_path).dropna()
     df.columns = df.columns.str.capitalize()
     df = df.set_index('Date')
-    data_close = df.filter(['Open'])
+    data_close = df.filter(['Close'])
     dataset = data_close.values
 
     training_data_len = math.ceil(len(dataset) * .8)
