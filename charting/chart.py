@@ -146,7 +146,12 @@ def showAlgorithmGUI(chart):
     elif chart.topbar['algo'].value == 'Deep_learning':
         if checkIfModelExists('Deep_learning',chart.topbar['symbol'].value,time_frame_manipulation(chart.topbar['timeframe'].value)) == False:
             show_model_not_trained_dialog()
-
+        else:
+            import sys
+            import os
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+            from run_cnn_model import run_deeplearning
+            run_deeplearning(chart.topbar['symbol'].value, time_frame_manipulation(chart.topbar['timeframe'].value))
 
 async def perform_regression_analysis(df):
     y = np.array(df["close"])
@@ -308,6 +313,12 @@ def on_row_click(row):
     elif row['Model'] == 'Deep_learning':
         if checkIfModelExists('Deep_learning',Chart.topbar['symbol'].value,time_frame_manipulation(Chart.topbar['timeframe'].value)) == False:
             show_model_not_trained_dialog()
+        else:
+            import sys
+            import os
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+            from run_cnn_model import run_deeplearning
+            run_deeplearning(Chart.topbar['symbol'].value, time_frame_manipulation(Chart.topbar['timeframe'].value))
 
 def create_algo_table(chart):
     global algo_names

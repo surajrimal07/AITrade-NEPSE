@@ -1,10 +1,10 @@
 {
     "NEPSE": {
         "1D": {
-            "Regression": 74.36,
-            "TimeSeries": 59.37,
-            "LSMT": "80",
-            "Deep_learning": "90",
+            "Regression": 74.53,
+            "TimeSeries": 50.68,
+            "LSMT": 96,
+            "Deep_learning": 87,
             "custom_algorithm": "50"
         },
         "1Min": {
@@ -20,7 +20,7 @@
             "LSMT": "80"
         },
         "1": {
-            "Regression": 30.28,
+            "Regression": 32.32,
             "TimeSeries": 74.22
         }
     },

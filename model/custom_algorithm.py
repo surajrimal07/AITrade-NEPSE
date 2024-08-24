@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import json
 
 def calculate_Cus(data, period_Cus=14):
     differencePrice = data['close'].diff()
@@ -101,7 +102,7 @@ def show_custom_Chart(SecurityName, timeFrame, period_Cus=14, max_points=500):
 
 def save_symbol_model_value(symbol, timeframe, model, accuracy):
     global algo_names
-    folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)))
+    folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model")
     os.makedirs(folder_path, exist_ok=True)
     json_path = os.path.join(folder_path, f"symbol_tf_accuracy.json")
 
@@ -118,3 +119,6 @@ def save_symbol_model_value(symbol, timeframe, model, accuracy):
 
     with open(json_path, 'w') as f:
         json.dump(data, f, indent=4)
+
+
+
